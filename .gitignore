@@ -1,4 +1,9 @@
 target/
+/.idea
+*.iml
+**/cache
+**/node
+**/elm-stuff
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup

@@ -64,9 +64,6 @@ public class ElmInstaller {
                 elmDownloadRoot = DEFAULT_ELM_DOWNLOAD_ROOT;
             }
             if (!elmIsAlreadyInstalled()) {
-                if (!elmVersion.startsWith("v")) {
-                    throw new InstallationException("Elm version has to start with prefix 'v'.");
-                }
                 installElm();
             }
         }
@@ -100,7 +97,8 @@ public class ElmInstaller {
             logger.info("Installing Elm version {}", elmVersion);
             String downloadUrl = elmDownloadRoot + elmVersion;
             String extension = "tar.gz";
-            String fileending = "/elm-" + elmVersion + "." + extension;
+            String platform = config.getPlatform().isWindows() ? "windows" : config.getPlatform().isMac() ? "mac" : "linux";
+            String fileending = "/binaries-for-" + platform + "." + extension;
 
             downloadUrl += fileending;
 
@@ -119,7 +117,7 @@ public class ElmInstaller {
                     FileUtils.deleteDirectory(installDirectory);
                 }
             } catch (IOException e) {
-                logger.warn("Failed to delete existing Yarn installation.");
+                logger.warn("Failed to delete existing Elm installation.");
             }
 
             try {
@@ -140,13 +138,13 @@ public class ElmInstaller {
                 throw e;
             }
 
-            ensureCorrectYarnRootDirectory(installDirectory, elmVersion);
+            ensureCorrectElmRootDirectory(installDirectory, elmVersion);
 
-            logger.info("Installed Yarn locally.");
+            logger.info("Installed Elm locally.");
         } catch (DownloadException e) {
-            throw new InstallationException("Could not download Yarn", e);
+            throw new InstallationException("Could not download Elm", e);
         } catch (ArchiveExtractionException | IOException e) {
-            throw new InstallationException("Could not extract the Yarn archive", e);
+            throw new InstallationException("Could not extract the Elm archive", e);
         }
     }
 
@@ -164,19 +162,20 @@ public class ElmInstaller {
         archiveExtractor.extract(archive.getPath(), destinationDirectory.getPath());
     }
 
-    private void ensureCorrectYarnRootDirectory(File installDirectory, String yarnVersion) throws IOException {
-        File yarnRootDirectory = new File(installDirectory, ELM_ROOT_DIRECTORY);
-        if (!yarnRootDirectory.exists()) {
-            logger.debug("Yarn root directory not found, checking for yarn-{}", yarnVersion);
-            // Handle renaming Yarn 1.X root to YARN_ROOT_DIRECTORY
-            File yarnOneXDirectory = new File(installDirectory, "yarn-" + yarnVersion);
-            if (yarnOneXDirectory.isDirectory()) {
-                if (!yarnOneXDirectory.renameTo(yarnRootDirectory)) {
-                    throw new IOException("Could not rename versioned yarn root directory to " + ELM_ROOT_DIRECTORY);
+    private void ensureCorrectElmRootDirectory(File installDirectory, String elmVersion) throws IOException {
+        File elmRootDirectory = new File(installDirectory, ELM_ROOT_DIRECTORY);
+        if (!elmRootDirectory.exists()) {
+            /*
+            logger.debug("Elm root directory not found, checking for elm-{}", elmVersion);
+            File elmOneXDirectory = new File(installDirectory, "elm-" + elmVersion);
+            if (elmOneXDirectory.isDirectory()) {
+                if (!elmOneXDirectory.renameTo(elmRootDirectory)) {
+                    throw new IOException("Could not rename versioned elm root directory to " + ELM_ROOT_DIRECTORY);
                 }
             } else {
-                throw new FileNotFoundException("Could not find yarn distribution directory during extract");
+                throw new FileNotFoundException("Could not find elm distribution directory during extract");
             }
+             */
         }
     }
 
