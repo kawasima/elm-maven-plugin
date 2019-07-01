@@ -15,7 +15,7 @@ public interface ElmExecutorConfig {
 final class InstallElmExecutorConfig implements ElmExecutorConfig {
 
     private static final String ELM_WINDOWS =
-            ElmInstaller.INSTALL_PATH.concat("/dist/bin/elm.cmd").replaceAll("/", "\\\\");
+            ElmInstaller.INSTALL_PATH.concat("/elm.exe").replaceAll("/", "\\\\");
 
     private static final String ELM_DEFAULT = ElmInstaller.INSTALL_PATH + "/elm";
 
