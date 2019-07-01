@@ -76,6 +76,8 @@ public abstract class AbstractElmMojo extends AbstractMojo {
 
     /**
      * Implemented by children to determine if this execution should be skipped.
+     *
+     * @return whether the execution is skipped.
      */
     protected abstract boolean skipExecution();
 

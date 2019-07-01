@@ -9,6 +9,9 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.settings.Server;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 
+/**
+ * Installing Elm.
+ */
 @Mojo(name = "install", defaultPhase = LifecyclePhase.GENERATE_RESOURCES, threadSafe = true)
 public class ElmInstallMojo extends AbstractElmMojo {
     @Parameter(property = "elmDownloadRoot", required = false,

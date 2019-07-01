@@ -19,11 +19,6 @@ package net.unit8.maven.plugins;
 import com.github.eirslett.maven.plugins.frontend.lib.ElmPluginFactory;
 import com.github.eirslett.maven.plugins.frontend.lib.ElmRunner;
 import com.github.eirslett.maven.plugins.frontend.lib.FrontendException;
-import com.github.eirslett.maven.plugins.frontend.lib.TaskRunnerException;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecution;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -31,14 +26,9 @@ import org.apache.maven.project.MavenProject;
 import org.eclipse.aether.RepositorySystemSession;
 
 import java.io.File;
-import java.util.Map;
 
 /**
- * Goal which touches a timestamp file.
- *
- * @goal touch
- * 
- * @phase process-sources
+ * Running Elm.
  */
 @Mojo(name = "run", defaultPhase = LifecyclePhase.GENERATE_RESOURCES)
 public class ElmRunMojo
