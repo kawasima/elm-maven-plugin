@@ -21,6 +21,9 @@ public class ElmInstaller {
     private static final Object LOCK = new Object();
 
     private static final String ELM_ROOT_DIRECTORY = "dist";
+    private static final String TAR_GZ = "tar.gz";
+    private static final String GZ = "gz";
+    private static final String ELM_VERSION_0_19_0 = "0.19.0";
 
     private String elmVersion, elmDownloadRoot, userName, password;
 
@@ -39,7 +42,7 @@ public class ElmInstaller {
         this.fileDownloader = fileDownloader;
     }
 
-        public ElmInstaller setElmVersion(String elmVersion) {
+    public ElmInstaller setElmVersion(String elmVersion) {
         this.elmVersion = elmVersion;
         return this;
     }
@@ -97,14 +100,9 @@ public class ElmInstaller {
     private void installElm() throws InstallationException {
         try {
             logger.info("Installing Elm version {}", elmVersion);
-            String downloadUrl = elmDownloadRoot + elmVersion;
-            String extension = "tar.gz";
-            String platform = config.getPlatform().isWindows() ? "windows" : config.getPlatform().isMac() ? "mac" : "linux";
-            String fileending = "/binaries-for-" + platform + "." + extension;
+            String downloadUrl = getDownloadUrl(elmDownloadRoot, elmVersion);
 
-            downloadUrl += fileending;
-
-            CacheDescriptor cacheDescriptor = new CacheDescriptor("elm", elmVersion, extension);
+            CacheDescriptor cacheDescriptor = new CacheDescriptor("elm", elmVersion, getExtension(elmVersion));
 
             File archive = config.getCacheResolver().resolve(cacheDescriptor);
 
@@ -145,6 +143,45 @@ public class ElmInstaller {
         } catch (ArchiveExtractionException | IOException e) {
             throw new InstallationException("Could not extract the Elm archive", e);
         }
+    }
+
+    String getDownloadUrl(String elmDownloadRoot, String elmVersion) {
+        return elmDownloadRoot + elmVersion +
+                getPrefix(elmVersion) +
+                getPlatform() +
+                getPostfix(elmVersion) +
+                getExtension(elmVersion);
+    }
+
+    private String getPostfix(String elmVersion) {
+        if (elmVersion.compareTo(ELM_VERSION_0_19_0) <= 0) {
+            return ".";
+        } else {
+            return "-64-bit.";
+        }
+    }
+
+    private String getExtension(String elmVersion) {
+        if (elmVersion.compareTo(ELM_VERSION_0_19_0) <= 0) {
+            return TAR_GZ;
+        }
+        return GZ;
+    }
+
+    private String getPrefix(String elmVersion) {
+        if (elmVersion.compareTo(ELM_VERSION_0_19_0) <= 0) {
+            return "/binaries-for-";
+        }
+        return "/binary-for-";
+    }
+
+    String getPlatform() {
+        if (config.getPlatform().isWindows()) {
+            return "windows";
+        } else if (config.getPlatform().isMac()) {
+            return "mac";
+        }
+        return "linux";
     }
 
     private File getInstallDirectory() {
