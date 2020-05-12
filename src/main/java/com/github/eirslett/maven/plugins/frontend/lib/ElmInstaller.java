@@ -20,12 +20,14 @@ public class ElmInstaller {
 
     private static final Object LOCK = new Object();
 
-    private static final String ELM_ROOT_DIRECTORY = "dist";
     private static final String TAR_GZ = "tar.gz";
     private static final String GZ = "gz";
     private static final String ELM_VERSION_0_19_0 = "0.19.0";
 
-    private String elmVersion, elmDownloadRoot, userName, password;
+    private String elmVersion;
+    private String elmDownloadRoot;
+    private String userName;
+    private String password;
 
     private final Logger logger;
 
@@ -210,6 +212,9 @@ public class ElmInstaller {
             GzipCompressorInputStream inputStream = new GzipCompressorInputStream(fis);
             final File destPath = new File(destinationDirectory + File.separator + "elm");
             Files.copy(inputStream, destPath.toPath());
+            if (!destPath.setExecutable(true)) {
+                throw new IOException(("Could not set the destination to be executable."));
+            }
         } catch (IOException e) {
             logger.error("Failed to get Elm ", e);
         }

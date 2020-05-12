@@ -33,7 +33,9 @@ class ElmInstallerTest {
         elmInstaller.setElmVersion(ELM_VERSION_19_0);
         elmInstaller.install();
 
-        assertTrue(new File(TARGET_NODE_ELM_ELM).exists());
+        File file = new File(TARGET_NODE_ELM_ELM);
+        assertTrue(file.exists());
+        assertTrue(file.canExecute());
     }
 
     @Test
@@ -42,7 +44,9 @@ class ElmInstallerTest {
         elmInstaller.setElmVersion(ELM_VERSION_19_1);
         elmInstaller.install();
 
-        assertTrue(new File(TARGET_NODE_ELM_ELM).exists());
+        File file = new File(TARGET_NODE_ELM_ELM);
+        assertTrue(file.exists());
+        assertTrue(file.canExecute());
     }
 
     @Test
