@@ -1,13 +1,15 @@
 package com.github.eirslett.maven.plugins.frontend.lib;
 
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
 
 public class ElmInstaller {
@@ -18,9 +20,14 @@ public class ElmInstaller {
 
     private static final Object LOCK = new Object();
 
-    private static final String ELM_ROOT_DIRECTORY = "dist";
+    private static final String TAR_GZ = "tar.gz";
+    private static final String GZ = "gz";
+    private static final String ELM_VERSION_0_19_0 = "0.19.0";
 
-    private String elmVersion, elmDownloadRoot, userName, password;
+    private String elmVersion;
+    private String elmDownloadRoot;
+    private String userName;
+    private String password;
 
     private final Logger logger;
 
@@ -37,7 +44,7 @@ public class ElmInstaller {
         this.fileDownloader = fileDownloader;
     }
 
-        public ElmInstaller setElmVersion(String elmVersion) {
+    public ElmInstaller setElmVersion(String elmVersion) {
         this.elmVersion = elmVersion;
         return this;
     }
@@ -75,7 +82,7 @@ public class ElmInstaller {
             File nodeFile = executorConfig.getElmPath();
             if (nodeFile.exists()) {
                 final String version =
-                    new ElmExecutor(executorConfig, Arrays.asList("--version"), null).executeAndGetResult(logger).trim();
+                        new ElmExecutor(executorConfig, Arrays.asList("--version"), null).executeAndGetResult(logger).trim();
 
                 if (version.equals(elmVersion.replaceFirst("^v", ""))) {
                     logger.info("Elm {} is already installed.", version);
@@ -95,14 +102,9 @@ public class ElmInstaller {
     private void installElm() throws InstallationException {
         try {
             logger.info("Installing Elm version {}", elmVersion);
-            String downloadUrl = elmDownloadRoot + elmVersion;
-            String extension = "tar.gz";
-            String platform = config.getPlatform().isWindows() ? "windows" : config.getPlatform().isMac() ? "mac" : "linux";
-            String fileending = "/binaries-for-" + platform + "." + extension;
+            String downloadUrl = getDownloadUrl(elmDownloadRoot, elmVersion);
 
-            downloadUrl += fileending;
-
-            CacheDescriptor cacheDescriptor = new CacheDescriptor("elm", elmVersion, extension);
+            CacheDescriptor cacheDescriptor = new CacheDescriptor("elm", elmVersion, getExtension(elmVersion));
 
             File archive = config.getCacheResolver().resolve(cacheDescriptor);
 
@@ -137,15 +139,51 @@ public class ElmInstaller {
 
                 throw e;
             }
-
-            ensureCorrectElmRootDirectory(installDirectory, elmVersion);
-
-            logger.info("Installed Elm locally.");
+            logger.info("Installed Elm locally to {} ", installDirectory);
         } catch (DownloadException e) {
             throw new InstallationException("Could not download Elm", e);
         } catch (ArchiveExtractionException | IOException e) {
             throw new InstallationException("Could not extract the Elm archive", e);
         }
+    }
+
+    String getDownloadUrl(String elmDownloadRoot, String elmVersion) {
+        return elmDownloadRoot + elmVersion +
+                getPrefix(elmVersion) +
+                getPlatform() +
+                getPostfix(elmVersion) +
+                getExtension(elmVersion);
+    }
+
+    private String getPostfix(String elmVersion) {
+        if (elmVersion.compareTo(ELM_VERSION_0_19_0) <= 0) {
+            return ".";
+        } else {
+            return "-64-bit.";
+        }
+    }
+
+    private String getExtension(String elmVersion) {
+        if (elmVersion.compareTo(ELM_VERSION_0_19_0) <= 0) {
+            return TAR_GZ;
+        }
+        return GZ;
+    }
+
+    private String getPrefix(String elmVersion) {
+        if (elmVersion.compareTo(ELM_VERSION_0_19_0) <= 0) {
+            return "/binaries-for-";
+        }
+        return "/binary-for-";
+    }
+
+    String getPlatform() {
+        if (config.getPlatform().isWindows()) {
+            return "windows";
+        } else if (config.getPlatform().isMac()) {
+            return "mac";
+        }
+        return "linux";
     }
 
     private File getInstallDirectory() {
@@ -159,35 +197,38 @@ public class ElmInstaller {
 
     private void extractFile(File archive, File destinationDirectory) throws ArchiveExtractionException {
         logger.info("Unpacking {} into {}", archive, destinationDirectory);
-        archiveExtractor.extract(archive.getPath(), destinationDirectory.getPath());
+        if (archive.getPath().endsWith(TAR_GZ)) {
+            archiveExtractor.extract(archive.getPath(), destinationDirectory.getPath());
+        } else {
+            extractGZ(archive, destinationDirectory);
+        }
     }
 
-    private void ensureCorrectElmRootDirectory(File installDirectory, String elmVersion) throws IOException {
-        File elmRootDirectory = new File(installDirectory, ELM_ROOT_DIRECTORY);
-        if (!elmRootDirectory.exists()) {
-            /*
-            logger.debug("Elm root directory not found, checking for elm-{}", elmVersion);
-            File elmOneXDirectory = new File(installDirectory, "elm-" + elmVersion);
-            if (elmOneXDirectory.isDirectory()) {
-                if (!elmOneXDirectory.renameTo(elmRootDirectory)) {
-                    throw new IOException("Could not rename versioned elm root directory to " + ELM_ROOT_DIRECTORY);
-                }
-            } else {
-                throw new FileNotFoundException("Could not find elm distribution directory during extract");
+    private void extractGZ(File archive, File destinationDirectory) {
+        try (FileInputStream fis = new FileInputStream(archive)) {
+            if (!destinationDirectory.mkdirs()) {
+                throw new IOException("Failed to make dirs: " + destinationDirectory);
             }
-             */
+            GzipCompressorInputStream inputStream = new GzipCompressorInputStream(fis);
+            final File destPath = new File(destinationDirectory + File.separator + "elm");
+            Files.copy(inputStream, destPath.toPath());
+            if (!destPath.setExecutable(true)) {
+                throw new IOException(("Could not set the destination to be executable."));
+            }
+        } catch (IOException e) {
+            logger.error("Failed to get Elm ", e);
         }
     }
 
     private void downloadFileIfMissing(String downloadUrl, File destination, String userName, String password)
-        throws DownloadException {
+            throws DownloadException {
         if (!destination.exists()) {
             downloadFile(downloadUrl, destination, userName, password);
         }
     }
 
     private void downloadFile(String downloadUrl, File destination, String userName, String password)
-        throws DownloadException {
+            throws DownloadException {
         logger.info("Downloading {} to {}", downloadUrl, destination);
         fileDownloader.download(downloadUrl, destination.getPath(), userName, password);
     }
