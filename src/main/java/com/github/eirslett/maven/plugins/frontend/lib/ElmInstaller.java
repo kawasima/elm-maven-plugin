@@ -1,13 +1,15 @@
 package com.github.eirslett.maven.plugins.frontend.lib;
 
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
 
 public class ElmInstaller {
@@ -75,7 +77,7 @@ public class ElmInstaller {
             File nodeFile = executorConfig.getElmPath();
             if (nodeFile.exists()) {
                 final String version =
-                    new ElmExecutor(executorConfig, Arrays.asList("--version"), null).executeAndGetResult(logger).trim();
+                        new ElmExecutor(executorConfig, Arrays.asList("--version"), null).executeAndGetResult(logger).trim();
 
                 if (version.equals(elmVersion.replaceFirst("^v", ""))) {
                     logger.info("Elm {} is already installed.", version);
@@ -137,10 +139,7 @@ public class ElmInstaller {
 
                 throw e;
             }
-
-            ensureCorrectElmRootDirectory(installDirectory, elmVersion);
-
-            logger.info("Installed Elm locally.");
+            logger.info("Installed Elm locally to {} ", installDirectory);
         } catch (DownloadException e) {
             throw new InstallationException("Could not download Elm", e);
         } catch (ArchiveExtractionException | IOException e) {
@@ -159,35 +158,35 @@ public class ElmInstaller {
 
     private void extractFile(File archive, File destinationDirectory) throws ArchiveExtractionException {
         logger.info("Unpacking {} into {}", archive, destinationDirectory);
-        archiveExtractor.extract(archive.getPath(), destinationDirectory.getPath());
+        if (archive.getPath().endsWith(TAR_GZ)) {
+            archiveExtractor.extract(archive.getPath(), destinationDirectory.getPath());
+        } else {
+            extractGZ(archive, destinationDirectory);
+        }
     }
 
-    private void ensureCorrectElmRootDirectory(File installDirectory, String elmVersion) throws IOException {
-        File elmRootDirectory = new File(installDirectory, ELM_ROOT_DIRECTORY);
-        if (!elmRootDirectory.exists()) {
-            /*
-            logger.debug("Elm root directory not found, checking for elm-{}", elmVersion);
-            File elmOneXDirectory = new File(installDirectory, "elm-" + elmVersion);
-            if (elmOneXDirectory.isDirectory()) {
-                if (!elmOneXDirectory.renameTo(elmRootDirectory)) {
-                    throw new IOException("Could not rename versioned elm root directory to " + ELM_ROOT_DIRECTORY);
-                }
-            } else {
-                throw new FileNotFoundException("Could not find elm distribution directory during extract");
+    private void extractGZ(File archive, File destinationDirectory) {
+        try (FileInputStream fis = new FileInputStream(archive)) {
+            if (!destinationDirectory.mkdirs()) {
+                throw new IOException("Failed to make dirs: " + destinationDirectory);
             }
-             */
+            GzipCompressorInputStream inputStream = new GzipCompressorInputStream(fis);
+            final File destPath = new File(destinationDirectory + File.separator + "elm");
+            Files.copy(inputStream, destPath.toPath());
+        } catch (IOException e) {
+            logger.error("Failed to get Elm ", e);
         }
     }
 
     private void downloadFileIfMissing(String downloadUrl, File destination, String userName, String password)
-        throws DownloadException {
+            throws DownloadException {
         if (!destination.exists()) {
             downloadFile(downloadUrl, destination, userName, password);
         }
     }
 
     private void downloadFile(String downloadUrl, File destination, String userName, String password)
-        throws DownloadException {
+            throws DownloadException {
         logger.info("Downloading {} to {}", downloadUrl, destination);
         fileDownloader.download(downloadUrl, destination.getPath(), userName, password);
     }
